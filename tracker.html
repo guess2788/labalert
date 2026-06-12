@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Follow-up Tracker</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+    <nav>
+      <a href="index.html">New Result</a>
+      <a href="tracker.html" class="active">Follow-up Tracker</a>
+    </nav>
+  </header>
+
+  <main class="container wide">
+    <section class="card">
+      <h1>Follow-up Tracker</h1>
+      <p class="subtitle">All patients with results. Click a status button to update it instantly.</p>
+
+      <p id="loading">Loading patients…</p>
+      <p id="empty" class="hidden">No results yet. Add one from the <a href="index.html">New Result</a> page.</p>
+
+      <div class="table-wrap hidden" id="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Test</th>
+              <th>Follow-up Date</th>
+              <th>Result</th>
+              <th>Follow-up Status</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { collection, getDocs, doc, updateDoc, query, orderBy }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const STATUSES = ["Notified", "Followed-up", "Lost to follow-up"];
+    const tbody = document.getElementById("tbody");
+
+    // CSS-friendly class name for each status
+    const cls = (s) => "st-" + s.toLowerCase().replace(/[^a-z]+/g, "-");
+
+    function statusButtons(id, current) {
+      const wrap = document.createElement("div");
+      wrap.className = "status-group";
+      STATUSES.forEach((s) => {
+        const btn = document.createElement("button");
+        btn.textContent = s;
+        btn.className = "status-btn " + cls(s) + (s === current ? " selected" : "");
+        btn.addEventListener("click", async () => {
+          // Update Firestore, then refresh button highlighting
+          try {
+            await updateDoc(doc(db, "results", id), { followUpStatus: s });
+            wrap.querySelectorAll(".status-btn").forEach((b) => b.classList.remove("selected"));
+            btn.classList.add("selected");
+          } catch (err) {
+            alert("Could not update status: " + err.message);
+          }
+        });
+        wrap.appendChild(btn);
+      });
+      return wrap;
+    }
+
+    async function loadPatients() {
+      try {
+        const q = query(collection(db, "results"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        document.getElementById("loading").classList.add("hidden");
+
+        if (snap.empty) {
+          document.getElementById("empty").classList.remove("hidden");
+          return;
+        }
+
+        snap.forEach((d) => {
+          const r = d.data();
+          const tr = document.createElement("tr");
+
+          const date = r.nextAppointment
+            ? new Date(r.nextAppointment + "T00:00:00").toLocaleDateString()
+            : "—";
+
+          tr.innerHTML = `
+            <td><strong>${r.fullName}</strong><br><span class="muted">${r.patientId}</span></td>
+            <td>${r.testType}</td>
+            <td>${date}</td>
+            <td><span class="badge badge-${(r.status || "").toLowerCase()}">${r.status}</span></td>
+            <td class="status-cell"></td>
+            <td><a href="result.html?id=${d.id}" target="_blank">Open ↗</a></td>
+          `;
+          tr.querySelector(".status-cell").appendChild(
+            statusButtons(d.id, r.followUpStatus || "Notified")
+          );
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("tableWrap").classList.remove("hidden");
+      } catch (err) {
+        document.getElementById("loading").textContent = "Could not load patients: " + err.message;
+      }
+    }
+
+    loadPatients();
+  </script>
+</body>
+</html>
