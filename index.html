@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Technician Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+    <nav>
+      <a href="index.html" class="active">New Result</a>
+      <a href="tracker.html">Follow-up Tracker</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Enter Lab Result</h1>
+      <p class="subtitle">Fill in the patient's result. A unique shareable link is generated on save.</p>
+
+      <form id="resultForm">
+        <div class="grid">
+          <div class="field">
+            <label for="patientId">Patient ID *</label>
+            <input type="text" id="patientId" required placeholder="e.g. PT-00231" />
+          </div>
+          <div class="field">
+            <label for="fullName">Full Name *</label>
+            <input type="text" id="fullName" required placeholder="e.g. Amina Yusuf" />
+          </div>
+          <div class="field">
+            <label for="testType">Test Type *</label>
+            <select id="testType" required>
+              <option value="">Select a test…</option>
+              <option>Fasting Blood Glucose</option>
+              <option>Hemoglobin (Hb)</option>
+              <option>Malaria RDT</option>
+              <option>HIV Viral Load</option>
+              <option>Blood Pressure</option>
+              <option>Cholesterol (Total)</option>
+              <option>Creatinine</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="resultValue">Result Value *</label>
+            <input type="text" id="resultValue" required placeholder="e.g. 142" />
+          </div>
+          <div class="field">
+            <label for="unit">Unit</label>
+            <input type="text" id="unit" placeholder="e.g. mg/dL" />
+          </div>
+          <div class="field">
+            <label for="refRange">Reference Range</label>
+            <input type="text" id="refRange" placeholder="e.g. 70 – 100 mg/dL" />
+          </div>
+          <div class="field">
+            <label for="status">Result Status *</label>
+            <select id="status" required>
+              <option value="">Select status…</option>
+              <option value="Normal">Normal</option>
+              <option value="Abnormal">Abnormal</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="nextAppointment">Next Appointment Date</label>
+            <input type="date" id="nextAppointment" />
+          </div>
+        </div>
+
+        <button type="submit" id="saveBtn" class="btn-primary">Save &amp; Generate Link</button>
+      </form>
+
+      <!-- Success panel: hidden until a result is saved -->
+      <div id="linkPanel" class="link-panel hidden">
+        <p>✅ Result saved! Share this link with the patient:</p>
+        <div class="link-row">
+          <input type="text" id="shareLink" readonly />
+          <button id="copyBtn" class="btn-secondary">Copy</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { collection, addDoc, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const form = document.getElementById("resultForm");
+    const saveBtn = document.getElementById("saveBtn");
+    const linkPanel = document.getElementById("linkPanel");
+    const shareLink = document.getElementById("shareLink");
+    const copyBtn = document.getElementById("copyBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving…";
+
+      try {
+        // Save to Firestore — the auto-generated doc ID becomes the unique link
+        const docRef = await addDoc(collection(db, "results"), {
+          patientId: document.getElementById("patientId").value.trim(),
+          fullName: document.getElementById("fullName").value.trim(),
+          testType: document.getElementById("testType").value,
+          resultValue: document.getElementById("resultValue").value.trim(),
+          unit: document.getElementById("unit").value.trim(),
+          refRange: document.getElementById("refRange").value.trim(),
+          status: document.getElementById("status").value,
+          nextAppointment: document.getElementById("nextAppointment").value,
+          followUpStatus: "Notified",          // default for the tracker page
+          createdAt: serverTimestamp()
+        });
+
+        // Build the unique patient link from the doc ID
+        const baseUrl = window.location.href.replace(/index\.html.*$|\/$/, "");
+        shareLink.value = `${baseUrl}/result.html?id=${docRef.id}`;
+        linkPanel.classList.remove("hidden");
+        form.reset();
+      } catch (err) {
+        alert("Could not save the result. Check your Firebase config.\n" + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save & Generate Link";
+      }
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(shareLink.value);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => (copyBtn.textContent = "Copy"), 2000);
+    });
+  </script>
+</body>
+</html>
