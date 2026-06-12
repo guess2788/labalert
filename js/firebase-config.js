@@ -2,15 +2,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ⬇️ REPLACE with the config from your Firebase console
-// (Firebase console → Project settings → Your apps → SDK setup and configuration)
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB4kZeQeiItAnqFmS9RMJN6RqMHEycBV6g",
+  authDomain: "labalert-10041.firebaseapp.com",
+  projectId: "labalert-10041",
+  storageBucket: "labalert-10041.firebasestorage.app",
+  messagingSenderId: "48162281989",
+  appId: "1:48162281989:web:b1ec3c665bacd2b2b15a6c"
 };
 
 const app = initializeApp(firebaseConfig);
