@@ -115,9 +115,9 @@
           createdAt: serverTimestamp()
         });
 
-        // Build the unique patient link from the doc ID
-        const baseUrl = window.location.href.replace(/index\.html.*$|\/$/, "");
-        shareLink.value = `${baseUrl}/result.html?id=${docRef.id}`;
+        // Build the unique patient link from the doc ID (robust against trailing slashes)
+        const dir = window.location.pathname.replace(/index\.html$/, "").replace(/\/+$/, "");
+        shareLink.value = `${window.location.origin}${dir}/result.html?id=${docRef.id}`;
         linkPanel.classList.remove("hidden");
         form.reset();
       } catch (err) {

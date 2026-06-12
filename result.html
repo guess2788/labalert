@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Your Test Result</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+  </header>
+
+  <main class="container">
+    <!-- Shown while loading -->
+    <section id="loading" class="card center">
+      <p>Loading your result…</p>
+    </section>
+
+    <!-- Shown if the link is wrong or expired -->
+    <section id="notFound" class="card center hidden">
+      <h1>Result not found</h1>
+      <p class="subtitle">This link is invalid or the result was removed. Please contact your lab.</p>
+    </section>
+
+    <!-- The actual result -->
+    <section id="resultCard" class="card hidden">
+      <p class="subtitle">Test result for</p>
+      <h1 id="patientName">—</h1>
+
+      <div class="result-summary">
+        <div>
+          <p class="label">Test</p>
+          <p id="testType" class="big">—</p>
+        </div>
+        <div>
+          <p class="label">Your result</p>
+          <p class="big"><span id="resultValue">—</span> <span id="unit" class="unit"></span></p>
+        </div>
+        <div>
+          <p class="label">Normal range</p>
+          <p id="refRange" class="big">—</p>
+        </div>
+        <div>
+          <p class="label">Status</p>
+          <span id="statusBadge" class="badge">—</span>
+        </div>
+      </div>
+
+      <div id="explanation" class="explain-box">—</div>
+
+      <div id="followUp" class="followup-box hidden">
+        📅 <strong>Your next appointment:</strong> <span id="appointmentDate"></span>.
+        Please return to the clinic on this date.
+      </div>
+
+      <p class="disclaimer">ℹ️ This page is for information only and does not replace advice
+      from your doctor. If you feel unwell, seek medical care right away.</p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { doc, getDoc }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Plain-language explanations for each test and status
+    const EXPLANATIONS = {
+      "Fasting Blood Glucose": {
+        Normal: "Your blood sugar level is within the healthy range. Keep up your current diet and activity.",
+        Abnormal: "Your blood sugar is outside the normal range. This can be an early sign of diabetes or another condition. Please attend your follow-up appointment so a clinician can review it.",
+        Critical: "Your blood sugar level is dangerously outside the normal range. Please go to the clinic or hospital as soon as possible — do not wait for your appointment."
+      },
+      "Hemoglobin (Hb)": {
+        Normal: "Your hemoglobin (the part of blood that carries oxygen) is at a healthy level.",
+        Abnormal: "Your hemoglobin is outside the normal range, which may mean anemia (low blood) or another condition. Please attend your follow-up appointment.",
+        Critical: "Your hemoglobin level is severely abnormal. Please seek medical care immediately."
+      },
+      "Malaria RDT": {
+        Normal: "No malaria was detected in your test.",
+        Abnormal: "Your test suggests a malaria infection. Treatment works best when started early — please come to the clinic for medication.",
+        Critical: "Your test shows a serious malaria result. Please come to the clinic or hospital immediately for treatment."
+      },
+      "HIV Viral Load": {
+        Normal: "Your viral load is suppressed — your treatment is working well. Keep taking your medication every day.",
+        Abnormal: "Your viral load is higher than expected. This may mean the treatment needs adjusting. Please attend your follow-up appointment.",
+        Critical: "Your viral load is very high. It is important to see your clinician as soon as possible to review your treatment."
+      },
+      "Blood Pressure": {
+        Normal: "Your blood pressure is in the healthy range.",
+        Abnormal: "Your blood pressure is outside the normal range. Untreated high blood pressure can damage the heart over time. Please attend your follow-up appointment.",
+        Critical: "Your blood pressure reading is dangerously high or low. Please seek medical care immediately."
+      },
+      "Cholesterol (Total)": {
+        Normal: "Your cholesterol level is healthy.",
+        Abnormal: "Your cholesterol is higher than recommended, which raises the risk of heart problems over time. Diet changes and follow-up can help — please attend your appointment.",
+        Critical: "Your cholesterol level is very high. Please see a clinician soon to discuss treatment."
+      },
+      "Creatinine": {
+        Normal: "Your kidney function marker (creatinine) is in the healthy range.",
+        Abnormal: "Your creatinine is outside the normal range, which can indicate the kidneys are under strain. Please attend your follow-up appointment.",
+        Critical: "Your creatinine level suggests a serious kidney problem. Please seek medical care immediately."
+      }
+    };
+
+    const GENERIC = {
+      Normal: "Your result is within the normal range. No urgent action is needed.",
+      Abnormal: "Your result is outside the normal range. Please attend your follow-up appointment so a clinician can review it with you.",
+      Critical: "Your result is significantly abnormal. Please contact your clinic or go to a health facility as soon as possible."
+    };
+
+    const show = (id) => document.getElementById(id).classList.remove("hidden");
+    const hide = (id) => document.getElementById(id).classList.add("hidden");
+
+    async function loadResult() {
+      const id = new URLSearchParams(window.location.search).get("id");
+      if (!id) { hide("loading"); show("notFound"); return; }
+
+      try {
+        const snap = await getDoc(doc(db, "results", id));
+        if (!snap.exists()) { hide("loading"); show("notFound"); return; }
+
+        const r = snap.data();
+        document.getElementById("patientName").textContent = r.fullName;
+        document.getElementById("testType").textContent = r.testType;
+        document.getElementById("resultValue").textContent = r.resultValue;
+        document.getElementById("unit").textContent = r.unit || "";
+        document.getElementById("refRange").textContent = r.refRange || "Not provided";
+
+        // Color-coded badge: green / orange / red
+        const badge = document.getElementById("statusBadge");
+        badge.textContent = r.status;
+        badge.classList.add("badge-" + r.status.toLowerCase());
+
+        // Plain-language explanation
+        const perTest = EXPLANATIONS[r.testType];
+        document.getElementById("explanation").textContent =
+          (perTest && perTest[r.status]) || GENERIC[r.status] || "";
+
+        // Follow-up date (only if set)
+        if (r.nextAppointment) {
+          const d = new Date(r.nextAppointment + "T00:00:00");
+          document.getElementById("appointmentDate").textContent =
+            d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+          show("followUp");
+        }
+
+        hide("loading");
+        show("resultCard");
+      } catch (err) {
+        hide("loading");
+        show("notFound");
+        console.error(err);
+      }
+    }
+
+    loadResult();
+  </script>
+</body>
+</html>
