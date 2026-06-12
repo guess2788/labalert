@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Technician Login</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+  </header>
+
+  <main class="container narrow">
+    <section class="card">
+      <h1>Technician Login</h1>
+      <p class="subtitle">Sign in to enter results and track follow-ups.</p>
+
+      <form id="loginForm">
+        <div class="field stack">
+          <label for="email">Email</label>
+          <input type="email" id="email" required placeholder="tech@yourlab.org" />
+        </div>
+        <div class="field stack">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="••••••••" />
+        </div>
+        <p id="errorMsg" class="error-msg hidden"></p>
+        <button type="submit" id="loginBtn" class="btn-primary">Sign in</button>
+      </form>
+    </section>
+  </main>
+
+  <script type="module">
+    import { auth } from "./js/firebase-config.js";
+    import { signInWithEmailAndPassword, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // Already logged in? Go straight to the dashboard
+    onAuthStateChanged(auth, (user) => {
+      if (user) window.location.replace("index.html");
+    });
+
+    const form = document.getElementById("loginForm");
+    const loginBtn = document.getElementById("loginBtn");
+    const errorMsg = document.getElementById("errorMsg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in…";
+      errorMsg.classList.add("hidden");
+
+      try {
+        await signInWithEmailAndPassword(
+          auth,
+          document.getElementById("email").value.trim(),
+          document.getElementById("password").value
+        );
+        window.location.replace("index.html");
+      } catch (err) {
+        errorMsg.textContent = "Sign-in failed. Check your email and password.";
+        errorMsg.classList.remove("hidden");
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>

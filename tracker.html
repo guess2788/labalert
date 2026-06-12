@@ -6,12 +6,13 @@
   <title>LabAlert — Follow-up Tracker</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
+<body class="auth-wait">
   <header class="topbar">
     <div class="brand">🔬 LabAlert</div>
     <nav>
       <a href="index.html">New Result</a>
       <a href="tracker.html" class="active">Follow-up Tracker</a>
+      <a href="#" id="logoutLink">Log out</a>
     </nav>
   </header>
 
@@ -42,12 +43,28 @@
   </main>
 
   <script type="module">
-    import { db } from "./js/firebase-config.js";
+    import { db, auth } from "./js/firebase-config.js";
     import { collection, getDocs, doc, updateDoc, query, orderBy }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { onAuthStateChanged, signOut }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     const STATUSES = ["Notified", "Followed-up", "Lost to follow-up"];
     const tbody = document.getElementById("tbody");
+    let loaded = false;
+
+    // 🔒 Auth guard: only logged-in technicians can see this page
+    onAuthStateChanged(auth, (user) => {
+      if (!user) { window.location.replace("login.html"); return; }
+      document.body.classList.remove("auth-wait");
+      if (!loaded) { loaded = true; loadPatients(); }
+    });
+
+    document.getElementById("logoutLink").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await signOut(auth);
+      window.location.replace("login.html");
+    });
 
     // CSS-friendly class name for each status
     const cls = (s) => "st-" + s.toLowerCase().replace(/[^a-z]+/g, "-");
@@ -60,7 +77,6 @@
         btn.textContent = s;
         btn.className = "status-btn " + cls(s) + (s === current ? " selected" : "");
         btn.addEventListener("click", async () => {
-          // Update Firestore, then refresh button highlighting
           try {
             await updateDoc(doc(db, "results", id), { followUpStatus: s });
             wrap.querySelectorAll(".status-btn").forEach((b) => b.classList.remove("selected"));
@@ -112,8 +128,6 @@
         document.getElementById("loading").textContent = "Could not load patients: " + err.message;
       }
     }
-
-    loadPatients();
   </script>
 </body>
 </html>
