@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Patient Sign Up</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+  </header>
+  <main class="container narrow">
+    <section class="card">
+      <h1>Patient Sign Up</h1>
+      <p class="subtitle">Create an account to access all your lab results anytime.</p>
+      <form id="signupForm">
+        <div class="field stack">
+          <label for="fullName">Full Name *</label>
+          <input type="text" id="fullName" required placeholder="e.g. Amina Yusuf" />
+        </div>
+        <div class="field stack">
+          <label for="phone">Phone Number *</label>
+          <input type="tel" id="phone" required placeholder="e.g. +213 555 123 456" />
+        </div>
+        <div class="field stack">
+          <label for="email">Email *</label>
+          <input type="email" id="email" required placeholder="e.g. amina@email.com" />
+        </div>
+        <div class="field stack">
+          <label for="password">Password *</label>
+          <input type="password" id="password" required placeholder="Min. 6 characters" />
+        </div>
+        <p id="errorMsg" class="error-msg hidden"></p>
+        <button type="submit" id="signupBtn" class="btn-primary">Create Account</button>
+        <p class="auth-switch">Already have an account? <a href="patient-login.html">Sign in</a></p>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { createUserWithEmailAndPassword, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { doc, setDoc }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) window.location.replace("patient-dashboard.html");
+    });
+
+    const form      = document.getElementById("signupForm");
+    const signupBtn = document.getElementById("signupBtn");
+    const errorMsg  = document.getElementById("errorMsg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      signupBtn.disabled = true;
+      signupBtn.textContent = "Creating account…";
+      errorMsg.classList.add("hidden");
+
+      const fullName = document.getElementById("fullName").value.trim();
+      const phone    = document.getElementById("phone").value.trim();
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "patients", cred.user.uid), {
+          fullName, phone, email,
+          role: "patient",
+          createdAt: new Date().toISOString()
+        });
+        window.location.replace("patient-dashboard.html");
+      } catch (err) {
+        let msg = "Sign-up failed. Please try again.";
+        if (err.code === "auth/email-already-in-use") msg = "This email is already registered.";
+        if (err.code === "auth/weak-password") msg = "Password must be at least 6 characters.";
+        errorMsg.textContent = msg;
+        errorMsg.classList.remove("hidden");
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Create Account";
+      }
+    });
+  </script>
+</body>
+</html>

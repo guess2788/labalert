@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAlert — Patient Login</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🔬 LabAlert</div>
+  </header>
+  <main class="container narrow">
+    <section class="card">
+      <h1>Patient Login</h1>
+      <p class="subtitle">Sign in to view your lab results.</p>
+      <form id="loginForm">
+        <div class="field stack">
+          <label for="email">Email *</label>
+          <input type="email" id="email" required placeholder="e.g. amina@email.com" />
+        </div>
+        <div class="field stack">
+          <label for="password">Password *</label>
+          <input type="password" id="password" required placeholder="••••••••" />
+        </div>
+        <p id="errorMsg" class="error-msg hidden"></p>
+        <button type="submit" id="loginBtn" class="btn-primary">Sign In</button>
+        <p class="auth-switch">No account yet? <a href="patient-signup.html">Sign up</a></p>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { auth } from "./js/firebase-config.js";
+    import { signInWithEmailAndPassword, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) window.location.replace("patient-dashboard.html");
+    });
+
+    const form     = document.getElementById("loginForm");
+    const loginBtn = document.getElementById("loginBtn");
+    const errorMsg = document.getElementById("errorMsg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in…";
+      errorMsg.classList.add("hidden");
+
+      try {
+        await signInWithEmailAndPassword(
+          auth,
+          document.getElementById("email").value.trim(),
+          document.getElementById("password").value
+        );
+        window.location.replace("patient-dashboard.html");
+      } catch (err) {
+        errorMsg.textContent = "Incorrect email or password.";
+        errorMsg.classList.remove("hidden");
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign In";
+      }
+    });
+  </script>
+</body>
+</html>
